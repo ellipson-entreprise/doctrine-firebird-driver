@@ -1,8 +1,8 @@
 <?php
-namespace Kafoso\DoctrineFirebirdDriver\Test\Integration\Doctrine\ORM\EntityManager\Repository;
+namespace IST\DoctrineFirebirdDriver\Test\Integration\Doctrine\ORM\EntityManager\Repository;
 
-use Kafoso\DoctrineFirebirdDriver\Test\Integration\AbstractIntegrationTest;
-use Kafoso\DoctrineFirebirdDriver\Test\Resource\Entity;
+use IST\DoctrineFirebirdDriver\Test\Integration\AbstractIntegrationTest;
+use IST\DoctrineFirebirdDriver\Test\Resource\Entity;
 
 class FindOneByTest extends AbstractIntegrationTest
 {

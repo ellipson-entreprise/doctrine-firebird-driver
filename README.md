@@ -3,7 +3,7 @@ Doctrine Firebird driver
 
 Firebird driver for the [Doctrine DBAL](https://github.com/doctrine/dbal).
 
-This library is completely separate (i.e. abstracted away) from the core Doctrine DBAL library. I.e. it is fully a **plug-in**.
+This library is completely separate (i.e. abstracted away) from the core Doctrine DBAL library. I.e. it is fully a **plug-in**, however, it requires **configuration in the PHP code**, contra e.g. YAML configuration in [Symfony](https://github.com/symfony/symfony).
 
 # Requirements
 
@@ -11,14 +11,8 @@ To utilize this library in your application code, the following is required:
 
 - [Firebird](https://firebirdsql.org/) version 2.5.*
   - Version 3.* is not supported. You are very welcome to provide a pull request for this.
-- PHP >= 7.1
-- PHP extensions<sup>1</sup>:
-  - [ibase](http://php.net/manual/en/book.ibase.php)
-  - [mbstring](http://php.net/manual/en/book.mbstring.php)
-  - xml
-- [doctrine/dbal: >=2.5 <=2.5.13](https://packagist.org/packages/doctrine/dbal#v2.5.0)
-
-<sup>1</sup> Only needed on remote/guest OS, e.g. a remote Ubuntu server or a VM installed through Docker, Vagrant, or XAMPP.
+- PHP >= 5.6.0
+- [doctrine/dbal: 2.5.\*](https://packagist.org/packages/doctrine/dbal#v2.5.0)
 
 # License & Disclaimer
 
@@ -45,32 +39,9 @@ Via Github:
 
 ## Configuration
 
-### Manual configuration
-
 For example of configuration in PHP, see [`tests/tests/Test/Integration/AbstractIntegrationTest.php`](tests/tests/Test/Integration/AbstractIntegrationTest.php) (in the method `setUp`).
 
-Additional help may be found at: https://www.doctrine-project.org/projects/doctrine-orm/en/2.5/reference/advanced-configuration.html
-
-### Symfony configuration (YAML)
-
-This driver may be used like any other Doctrine DBAL driver in [Symfony](https://symfony.com/). However, the `driver_class` option must be specified instead of simply `driver`. This is due to the driver not being part of the [core Doctrine DBAL library](https://github.com/doctrine/dbal).
-
-Sample YAML configuration:
-
-```
-doctrine:
-    dbal:
-        default_connection: default
-        connections:
-            default:
-                driver_class:   Kafoso\DoctrineFirebirdDriver\Driver\FirebirdInterbase\Driver
-                host:           "%database_host%"
-                port:           "%database_port%"
-                dbname:         "%database_name%"
-                user:           "%database_user%"
-                password:       "%database_password%"
-                charset:        "UTF-8"
-```
+A YAML configuration example is not provided, nor is YAML supported at the current stage.
 
 # Tests
 
@@ -105,15 +76,8 @@ Due to the database being created by the PHP bootstrap script on the fly, `root`
 
 1. `vagrant ssh`
 2. `sudo su`
-3. `apt-get install zip -y` (for when installing composer packages)
-4. Install composer (on guest OS). Follow these instructions: https://getcomposer.org/download/
-5. `mv composer.phar /usr/bin/composer`
-6. `cd /var/git/kafoso/doctrine-firebird-driver`
-7. `composer install`<sup>1</sup>
-8. `cd /var/git/kafoso/doctrine-firebird-driver/tests`
-9. `php ../bin/phpunit tests`
-
-<sup>1</sup> Composer will say you shouldn't run it as root/super user. This is techically true, but it's fine in the VM.
+3. `cd /var/git/kafoso/doctrine-firebird-driver/tests`
+4. `../vendor/phpunit/phpunit/phpunit tests`
 
 # Credits
 

@@ -1,9 +1,9 @@
 <?php
-namespace Kafoso\DoctrineFirebirdDriver\Test\Integration\Doctrine\DBAL\Database\Table;
+namespace IST\DoctrineFirebirdDriver\Test\Integration\Doctrine\DBAL\Database\Table;
 
-use Kafoso\DoctrineFirebirdDriver\Driver\FirebirdInterbase\Statement;
-use Kafoso\DoctrineFirebirdDriver\Test\Integration\AbstractIntegrationTest;
-use Kafoso\DoctrineFirebirdDriver\Schema\FirebirdInterbaseSchemaManager;
+use IST\DoctrineFirebirdDriver\Driver\FirebirdInterbase\Statement;
+use IST\DoctrineFirebirdDriver\Test\Integration\AbstractIntegrationTest;
+use IST\DoctrineFirebirdDriver\Schema\FirebirdInterbaseSchemaManager;
 
 class AlterTest extends AbstractIntegrationTest
 {

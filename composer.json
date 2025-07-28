@@ -5,10 +5,11 @@
     "authors": [
         {
             "name": "Kasper Søfren",
-            "email": "soefritz@gmail.com"
+            "email": "Kasper.Sofren@ist.com"
         },
         {
-            "name": "Uffe Petersen"
+            "name": "Uffe Petersen",
+            "email": "Uffe.Petersen@ist.com"
         }
     ],
     "config": {
@@ -17,22 +18,22 @@
     },
     "autoload": {
         "psr-4": {
-            "Kafoso\\DoctrineFirebirdDriver\\": "src/"
+            "IST\\DoctrineFirebirdDriver\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Kafoso\\DoctrineFirebirdDriver\\Test\\Resource\\": "tests/resources/Test/Resource",
-            "Kafoso\\DoctrineFirebirdDriver\\Test\\Integration\\": "tests/tests/Test/Integration",
-            "Kafoso\\DoctrineFirebirdDriver\\Test\\Unit\\": "tests/tests/Test/Unit"
+            "IST\\DoctrineFirebirdDriver\\Test\\Resource\\": "tests/resources/Test/Resource",
+            "IST\\DoctrineFirebirdDriver\\Test\\Integration\\": "tests/tests/Test/Integration",
+            "IST\\DoctrineFirebirdDriver\\Test\\Unit\\": "tests/tests/Test/Unit"
         }
     },
     "require": {
-        "doctrine/dbal": ">=2.5 <=2.5.13",
-        "php": ">=7.1"
+        "doctrine/dbal": "^2.5",
+        "php": ">=5.6"
     },
     "require-dev": {
-        "doctrine/orm": "2.5.*",
+        "doctrine/orm": "^2.5",
         "phpunit/phpunit": "^5.7"
     }
 }

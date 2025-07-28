@@ -1,19 +1,21 @@
 <?php
-namespace Kafoso\DoctrineFirebirdDriver\Driver;
+namespace IST\DoctrineFirebirdDriver\Driver;
 
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\ExceptionConverterDriver;
 use Doctrine\DBAL\Exception;
-use Kafoso\DoctrineFirebirdDriver\Platforms\FirebirdInterbasePlatform;
-use Kafoso\DoctrineFirebirdDriver\Schema\FirebirdInterbaseSchemaManager;
+use IST\DoctrineFirebirdDriver\Platforms\FirebirdInterbasePlatform;
+use IST\DoctrineFirebirdDriver\Schema\FirebirdInterbaseSchemaManager;
 
 abstract class AbstractFirebirdInterbaseDriver implements Driver, ExceptionConverterDriver
 {
-    const ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL = 'doctrineTransactionIsolationLevel';
+    protected $configuration = null;
+    private $_platform = null;
 
-    const ATTR_DOCTRINE_DEFAULT_TRANS_WAIT = 'doctrineTransactionWait';
-
-    private $_driverOptions = [];
+    public function __construct(ConfigurationInterface $configuration)
+    {
+        $this->configuration = $configuration;
+    }
 
     /**
      * {@inheritdoc}
@@ -56,39 +58,11 @@ abstract class AbstractFirebirdInterbaseDriver implements Driver, ExceptionConve
     }
 
     /**
-     * @param string $key
-     * @param mixed $value
-     * @return self
-     */
-    public function setDriverOption($key, $value)
-    {
-        if (trim($key) && in_array($key, self::getDriverOptionKeys())) {
-            $this->_driverOptions[$key] = $value;
-        }
-        return $this;
-    }
-
-    /**
-     * @param array $options
-     * @return self
-     */
-    public function setDriverOptions($options)
-    {
-        if (is_array($options)) {
-            foreach ($options as $k => $v) {
-                $this->setDriverOption($k, $v);
-            }
-        }
-        return $this;
-    }
-
-    /**
      * {@inheritdoc}
      */
     public function getDatabase(\Doctrine\DBAL\Connection $conn)
     {
-        $params = $conn->getParams();
-        return $params['dbname'];
+        return $this->configuration->getDatabase();
     }
 
     /**
@@ -97,27 +71,13 @@ abstract class AbstractFirebirdInterbaseDriver implements Driver, ExceptionConve
      */
     public function getDatabasePlatform()
     {
-        return new FirebirdInterbasePlatform();
-    }
-
-    /**
-     * @param string $key
-     * @return mixed
-     */
-    public function getDriverOption($key)
-    {
-        if (trim($key) && in_array($key, self::getDriverOptionKeys())) {
-            return $this->_driverOptions[$key];
+        if (null === $this->_platform) {
+            $this->_platform = new FirebirdInterbasePlatform();
+            if ($this->configuration->getDriverOptions()) {
+                $this->_platform->setPlatformOptions($this->configuration->getDriverOptions());
+            }
         }
-        return null;
-    }
-
-    /**
-     * @return array
-     */
-    public function getDriverOptions()
-    {
-        return $this->_driverOptions;
+        return $this->_platform;
     }
 
     /**
@@ -127,17 +87,5 @@ abstract class AbstractFirebirdInterbaseDriver implements Driver, ExceptionConve
     public function getSchemaManager(\Doctrine\DBAL\Connection $conn)
     {
         return new FirebirdInterbaseSchemaManager($conn);
-    }
-
-    /**
-     * @return array
-     */
-    public static function getDriverOptionKeys()
-    {
-        return [
-            self::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL,
-            self::ATTR_DOCTRINE_DEFAULT_TRANS_WAIT,
-            \PDO::ATTR_AUTOCOMMIT,
-        ];
     }
 }

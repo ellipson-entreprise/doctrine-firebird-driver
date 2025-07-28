@@ -1,50 +1,26 @@
 <?php
-namespace Kafoso\DoctrineFirebirdDriver\Driver\FirebirdInterbase;
+namespace IST\DoctrineFirebirdDriver\Driver\FirebirdInterbase;
 
 use Doctrine\DBAL\Driver\Connection as ConnectionInterface;
 use Doctrine\DBAL\Driver\ServerInfoAwareConnection;
-use Kafoso\DoctrineFirebirdDriver\Driver\AbstractFirebirdInterbaseDriver;
-use Kafoso\DoctrineFirebirdDriver\ValueFormatter;
+use IST\DoctrineFirebirdDriver\Driver\ConfigurationInterface;
 
 /**
  * Based on https://github.com/helicon-os/doctrine-dbal
  */
 class Connection implements ConnectionInterface, ServerInfoAwareConnection
 {
-    const DEFAULT_CHARSET = 'UTF-8';
-    const DEFAULT_BUFFERS = 0;
-    const DEFAULT_IS_PERSISTENT = true;
-    const DEFAULT_DIALECT = 0;
+    const TRANSACTIONS_MAXIMUM_LEVEL = 20;
 
     /**
-     * @var null|string
+     * @var Configuration
      */
-    protected $connectString = null;
-
-    /**
-     * @var bool
-     */
-    protected $isPersistent = true;
-
-    /**
-     * @var string
-     */
-    protected $charset = 'UTF-8';
-
-    /**
-     * @var int
-     */
-    protected $buffers = 0;
-
-    /**
-     * @var int
-     */
-    protected $dialect = 0;
+    private $_configuration;
 
     /**
      * @var resource (ibase_pconnect or ibase_connect)
      */
-    private $_ibaseConnectionRc = null;
+    private $_ibaseConnectionRc;
 
     /**
      * @var int
@@ -76,57 +52,64 @@ class Connection implements ConnectionInterface, ServerInfoAwareConnection
     protected $attrAutoCommit = true;
 
     /**
-     * @param string $params
-     * @param null|string $username
-     * @param null|string $password
-     * @param null|array $driverOptions
-     * @throws \RuntimeException
+     * @throws Exception
      */
-    public function __construct(array $params, $username, $password, array $driverOptions = array())
+    public function __construct(Configuration $configuration)
     {
-        $this->close(); // Close/reset; because calling __construct after instantiation is apparently a thing
-
-        $this->connectString = self::generateConnectString($params);
-        $this->isPersistent = self::DEFAULT_IS_PERSISTENT;
-        if (isset($params['isPersistent']) && is_bool($params['isPersistent'])) {
-            $this->isPersistent = $params['isPersistent'];
+        $this->_configuration = $configuration;
+        foreach ($this->_configuration->getDriverOptions() as $k => $v) {
+            $this->setAttribute($k, $v);
         }
-        $this->charset = self::DEFAULT_CHARSET;
-        if (isset($params['charset']) && is_string($params['charset']) && $params['charset']) {
-            $this->charset = $params['charset'];
-        }
-        $this->buffers = self::DEFAULT_BUFFERS;
-        if (isset($params['buffers']) && is_int($params['buffers']) && $params['buffers'] >= 0) {
-            $this->buffers = $params['buffers'];
-        }
-        $this->dialect = self::DEFAULT_DIALECT;
-        if (isset($params['dialect'])
-            && is_int($params['dialect'])
-            && $params['dialect'] >= 0
-            && $params['dialect'] <= 3) {
-            $this->dialect = $params['dialect'];
-        }
-        $this->username = $username;
-        $this->password = $password;
-        if ($driverOptions) {
-            foreach ($driverOptions as $k => $v) {
-                $this->setAttribute($k, $v);
-            }
-        }
-        $this->getActiveTransaction(); // Connects to the database
+        $this->connect();
     }
 
     public function __destruct()
     {
-        $this->close();
+        $this->autoCommit();
+        $success = @ibase_close($this->_ibaseConnectionRc);
+        if (false == $success) {
+            $this->checkLastApiCall();
+        }
+    }
+
+    public function connect()
+    {
+        if (!$this->_ibaseConnectionRc || !is_resource($this->_ibaseConnectionRc)) {
+            if ($this->_configuration->isPersistent()) {
+                $this->_ibaseConnectionRc = @ibase_pconnect(
+                    $this->_configuration->getFullHostString(),
+                    $this->_configuration->getUsername(),
+                    $this->_configuration->getPassword(),
+                    $this->_configuration->getCharset(),
+                    $this->_configuration->getBuffers(),
+                    $this->_configuration->getDialect()
+                );
+            } else {
+                $this->_ibaseConnectionRc = @ibase_connect(
+                    $this->_configuration->getFullHostString(),
+                    $this->_configuration->getUsername(),
+                    $this->_configuration->getPassword(),
+                    $this->_configuration->getCharset(),
+                    $this->_configuration->getBuffers(),
+                    $this->_configuration->getDialect()
+                );
+            }
+            if (!is_resource($this->_ibaseConnectionRc)) {
+                $this->checkLastApiCall();
+            }
+            if (!is_resource($this->_ibaseConnectionRc)) {
+                throw Exception::fromErrorInfo($this->errorInfo());
+            }
+            $this->_ibaseActiveTransaction = $this->createTransaction(true);
+        }
     }
 
     /**
      * {@inheritDoc}
      *
      * Additionally to the standard driver attributes, the attribute
-     * {@link AbstractFirebirdInterbaseDriver::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL} can be used to control the
-     * isolation level used for transactions.
+     * {@link Configuration::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL} can be used to control
+     * the isolation level used for transactions
      *
      * @param string $attribute
      * @param mixed $value
@@ -134,10 +117,10 @@ class Connection implements ConnectionInterface, ServerInfoAwareConnection
     public function setAttribute($attribute, $value)
     {
         switch ($attribute) {
-            case AbstractFirebirdInterbaseDriver::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL:
+            case Configuration::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL:
                 $this->attrDcTransIsolationLevel = $value;
                 break;
-            case AbstractFirebirdInterbaseDriver::ATTR_DOCTRINE_DEFAULT_TRANS_WAIT:
+            case Configuration::ATTR_DOCTRINE_DEFAULT_TRANS_WAIT:
                 $this->attrDcTransWait = $value;
                 break;
             case \PDO::ATTR_AUTOCOMMIT:
@@ -154,13 +137,21 @@ class Connection implements ConnectionInterface, ServerInfoAwareConnection
     public function getAttribute($attribute)
     {
         switch ($attribute) {
-            case AbstractFirebirdInterbaseDriver::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL:
+            case Configuration::ATTR_DOCTRINE_DEFAULT_TRANS_ISOLATION_LEVEL:
                 return $this->attrDcTransIsolationLevel;
-            case AbstractFirebirdInterbaseDriver::ATTR_DOCTRINE_DEFAULT_TRANS_WAIT:
+            case Configuration::ATTR_DOCTRINE_DEFAULT_TRANS_WAIT:
                 return $this->attrDcTransWait;
             case \PDO::ATTR_AUTOCOMMIT:
                 return $this->attrAutoCommit;
         }
+    }
+
+    /**
+     * @return ConfigurationInterface
+     */
+    public function getConfiguration()
+    {
+        return $this->_configuration;
     }
 
     /**
@@ -210,7 +201,7 @@ class Connection implements ConnectionInterface, ServerInfoAwareConnection
     /**
      * {@inheritdoc}
      */
-    public function quote($value, $type=\PDO::PARAM_STR)
+    public function quote($input, $type=\PDO::PARAM_STR)
     {
         if (is_int($value) || is_float($value)) {
             return $value;
@@ -231,30 +222,13 @@ class Connection implements ConnectionInterface, ServerInfoAwareConnection
 
     /**
      * {@inheritdoc}
-     * @throws \InvalidArgumentException
-     * @throws \UnexpectedValueException
      */
     public function lastInsertId($name = null)
     {
         if ($name === null) {
             return false;
         }
-        if (false == is_string($name)) {
-            throw new \InvalidArgumentException(sprintf(
-                "Argument \$name must be null or a string. Found: %s",
-                ValueFormatter::found($name)
-            ));
-        }
-        $maxGeneratorLength = 31;
-        $regex = "/^\w{1,{$maxGeneratorLength}}\$/";
-        if (false == preg_match($regex, $name)) {
-            throw new \UnexpectedValueException(sprintf(
-                "Expects argument \$name to match regular expression '%s'. Found: %s",
-                $regex,
-                ValueFormatter::found($name)
-            ));
-        }
-        $sql = "SELECT GEN_ID({$name}, 0) LAST_VAL FROM RDB\$DATABASE";
+        $sql = "SELECT GEN_ID('{$name}', 0) LAST_VAL FROM RDB\$DATABASE";
         $stmt = $this->query($sql);
         $result = $stmt->fetchColumn(0);
         return $result;
@@ -410,38 +384,7 @@ class Connection implements ConnectionInterface, ServerInfoAwareConnection
      */
     public function getActiveTransaction()
     {
-        if (!$this->_ibaseConnectionRc || false == is_resource($this->_ibaseConnectionRc)) {
-            try {
-                if ($this->isPersistent) {
-                    $this->_ibaseConnectionRc = @ibase_pconnect( // Notice the "p"
-                        $this->connectString,
-                        $this->username,
-                        $this->password,
-                        $this->charset,
-                        $this->buffers,
-                        $this->dialect
-                    );
-                } else {
-                    $this->_ibaseConnectionRc = @ibase_connect(
-                        $this->connectString,
-                        $this->username,
-                        $this->password,
-                        $this->charset,
-                        $this->buffers,
-                        $this->dialect
-                    );
-                }
-                if (!is_resource($this->_ibaseConnectionRc)) {
-                    $this->checkLastApiCall();
-                }
-                if (!is_resource($this->_ibaseConnectionRc)) {
-                    throw Exception::fromErrorInfo($this->errorInfo());
-                }
-                $this->_ibaseActiveTransaction = $this->createTransaction(true);
-            } catch (\Exception $e) {
-                throw new \RuntimeException("Failed to connection to database", 0, $e);
-            }
-        }
+        $this->connect();
         if (!$this->_ibaseActiveTransaction || false == is_resource($this->_ibaseActiveTransaction)) {
             throw new \RuntimeException(sprintf(
                 "No active transaction. \$this->_ibaseTransactionLevel = %d",
@@ -479,45 +422,5 @@ class Connection implements ConnectionInterface, ServerInfoAwareConnection
             $this->checkLastApiCall();
         }
         return $result;
-    }
-
-    protected function close()
-    {
-        if ($this->_ibaseActiveTransaction && is_resource($this->_ibaseActiveTransaction)) {
-            if ($this->_ibaseTransactionLevel > 0) {
-                $this->rollback(); // Auto-rollback explicite transactions
-            }
-            $this->autoCommit();
-        }
-        $success = true;
-        if ($this->_ibaseConnectionRc && is_resource($this->_ibaseConnectionRc)) {
-            $success = @ibase_close($this->_ibaseConnectionRc);
-        }
-        $this->_ibaseConnectionRc = null;
-        $this->_ibaseActiveTransaction  = null;
-        $this->_ibaseTransactionLevel = 0;
-        if (false == $success) {
-            $this->checkLastApiCall();
-        }
-    }
-
-    /**
-     * @throws \RuntimeException
-     * @return string
-     */
-    public static function generateConnectString(array $params)
-    {
-        if (isset($params['host'], $params['dbname']) && $params['host'] && $params['dbname']) {
-            $str = $params['host'];
-            if (isset($params['port'])) {
-                if (!$params['port']) {
-                    throw new \RuntimeException("Invalid \"port\" in argument \$params");
-                }
-                $str .= '/' . $params['port'];
-            }
-            $str .= ':' . $params['dbname'];
-            return $str;
-        }
-        throw new \RuntimeException("Argument \$params must contain non-empty \"host\" and \"dbname\"");
     }
 }

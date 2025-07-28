@@ -1,5 +1,5 @@
 <?php
-namespace Kafoso\DoctrineFirebirdDriver\Schema;
+namespace IST\DoctrineFirebirdDriver\Schema;
 
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
 

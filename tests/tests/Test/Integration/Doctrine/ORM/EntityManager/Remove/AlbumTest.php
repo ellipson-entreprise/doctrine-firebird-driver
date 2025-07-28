@@ -1,8 +1,8 @@
 <?php
-namespace Kafoso\DoctrineFirebirdDriver\Test\Integration\Doctrine\EntityManager\Remove;
+namespace IST\DoctrineFirebirdDriver\Test\Integration\Doctrine\EntityManager\Remove;
 
-use Kafoso\DoctrineFirebirdDriver\Test\Integration\AbstractIntegrationTest;
-use Kafoso\DoctrineFirebirdDriver\Test\Resource\Entity;
+use IST\DoctrineFirebirdDriver\Test\Integration\AbstractIntegrationTest;
+use IST\DoctrineFirebirdDriver\Test\Resource\Entity;
 
 class AlbumTest extends AbstractIntegrationTest
 {
