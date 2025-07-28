@@ -10,6 +10,7 @@ class Connection extends PDOConnection
     /**
      * {@inheritdoc}
      */
+    #[\ReturnTypeWillChange]
     public function beginTransaction()
     {
         return true;
